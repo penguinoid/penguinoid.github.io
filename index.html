@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=480, height=360">
-    <title>CRT Terminal</title>
+    <title>The Gang of Four Ride Again</title>
     <style>
         body {
             background: black;
@@ -13,7 +13,9 @@
             height: 100vh;
         }
         #crt {
-            width: calc(80ch + 20px); /* 80 characters + padding */
+            width: calc(80ch + 20px); /* Default: 80 characters + padding */
+            max-width: calc(80ch + 20px);
+            min-width: 0;
             height: 360px;
             overflow: hidden;
             font-family: 'Courier New', monospace;
@@ -33,6 +35,18 @@
             white-space: pre;
             position: relative;
             z-index: 1;
+            box-sizing: border-box;
+            transition: width 0.2s;
+        }
+        @media (max-width: 700px) {
+            #crt {
+                width: 90vw;
+                max-width: 100vw;
+                font-size: 4vw;
+                line-height: 1.2em;
+                height: auto;
+                min-height: 180px;
+            }
         }
         #crt::before {
             content: "";
@@ -89,8 +103,18 @@
             textArray.push(""); // Insert a blank line for paragraph spacing
         });
 
-        // Always wrap at 80 characters
-        const MAX_CHARS = 80;
+        // Always wrap at 80 characters unless screen is small
+        function getMaxChars() {
+            if (window.innerWidth <= 700) {
+                // Estimate chars based on terminal width and font size
+                const style = window.getComputedStyle(terminal);
+                const fontSize = parseFloat(style.fontSize) || 16;
+                const padding = 20;
+                const width = terminal.clientWidth - padding;
+                return Math.max(20, Math.floor(width / (fontSize * 0.6)));
+            }
+            return 80;
+        }
 
         function wrapTextToWidth(words, maxChars) {
             let lines = [];
@@ -125,9 +149,12 @@
         let index = 0;
 
         function updateFormattedLines() {
-            formattedLines = wrapTextToWidth(textArray, MAX_CHARS);
+            const maxChars = getMaxChars();
+            formattedLines = wrapTextToWidth(textArray, maxChars);
+            // Update lineHeight for responsive font size
+            const style = window.getComputedStyle(terminal);
+            lineHeight = parseFloat(style.lineHeight) || 18;
             visibleLines = Math.floor(terminal.clientHeight / lineHeight);
-            // Always set index so the last page fills the terminal from the bottom
             if (formattedLines.length <= visibleLines) {
                 index = 0;
             } else if (index > formattedLines.length - visibleLines) {
@@ -136,7 +163,6 @@
         }
 
         function renderText() {
-            // Ensure index is always valid before rendering
             if (formattedLines.length <= visibleLines) {
                 index = 0;
             } else if (index > formattedLines.length - visibleLines) {
@@ -169,13 +195,7 @@
         });
 
         window.addEventListener('resize', () => {
-            visibleLines = Math.floor(terminal.clientHeight / lineHeight);
-            // Always set index so the last page fills the terminal from the bottom
-            if (formattedLines.length <= visibleLines) {
-                index = 0;
-            } else if (index > formattedLines.length - visibleLines) {
-                index = formattedLines.length - visibleLines;
-            }
+            updateFormattedLines();
             renderText();
         });
 
