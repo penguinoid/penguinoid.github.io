@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -17,7 +18,8 @@
             max-width: calc(80ch + 20px);
             min-width: 0;
             height: 360px;
-            overflow: hidden;
+            overflow-y: auto;   /* Enable vertical scrolling */
+            overflow-x: hidden; /* Prevent horizontal scroll */
             font-family: 'Courier New', monospace;
             font-size: 16px;
             line-height: 20px;
@@ -37,6 +39,8 @@
             z-index: 1;
             box-sizing: border-box;
             transition: width 0.2s;
+            scrollbar-width: none;      /* Firefox */
+            -ms-overflow-style: none;   /* IE and Edge */
         }
         @media (max-width: 700px) {
             #crt {
@@ -44,8 +48,8 @@
                 max-width: 100vw;
                 font-size: 4vw;
                 line-height: 1.2em;
-                height: auto;
-                min-height: 180px;
+                height: 90vh;         /* Changed from auto/min-height to 90% of viewport height */
+                min-height: 0;        /* Remove min-height to allow full responsiveness */
             }
         }
         #crt::before {
@@ -85,6 +89,9 @@
         #gangoffour {
             display: none;
         }
+        #crt::-webkit-scrollbar {
+            display: none;              /* Chrome, Safari, Opera */
+        }
     </style>
 </head>
 <body>
@@ -94,114 +101,67 @@
     </div>
     
     <script>
-        const terminal = document.getElementById('crt');
-        const paragraphs = document.querySelectorAll("#gangoffour p");
+document.addEventListener("DOMContentLoaded", function() {
+    const terminal = document.getElementById('crt');
+    const paragraphs = document.querySelectorAll("#gangoffour p");
 
-        let textArray = [];
-        paragraphs.forEach(p => {
-            textArray.push(...p.innerText.split(" "));
-            textArray.push(""); // Insert a blank line for paragraph spacing
-        });
+    let textArray = [];
+    paragraphs.forEach(p => {
+        textArray.push(...p.textContent.split(" "));
+        textArray.push(""); // Insert a blank line for paragraph spacing
+    });
 
-        // Always wrap at 80 characters unless screen is small
-        function getMaxChars() {
-            if (window.innerWidth <= 700) {
-                // Estimate chars based on terminal width and font size
-                const style = window.getComputedStyle(terminal);
-                const fontSize = parseFloat(style.fontSize) || 16;
-                const padding = 20;
-                const width = terminal.clientWidth - padding;
-                return Math.max(20, Math.floor(width / (fontSize * 0.6)));
-            }
-            return 80;
+    // Display the wrapped text
+    const wrapped = wrapTextToWidth(textArray, getMaxChars());
+    terminal.textContent = wrapped.join("\n");
+
+    // Always wrap at 80 characters unless screen is short
+    function getMaxChars() {
+        if (window.innerWidth <= 700) {
+            // Estimate chars based on terminal width and font size
+            const style = window.getComputedStyle(terminal);
+            const fontSize = parseFloat(style.fontSize) || 16;
+            const padding = 20;
+            const width = terminal.clientWidth - padding;
+            return Math.max(20, Math.floor(width / (fontSize * 0.6)));
         }
+        return 80;
+    }
 
-        function wrapTextToWidth(words, maxChars) {
-            let lines = [];
-            let currentLine = "";
-            words.forEach(word => {
-                if (word === "") {
-                    if (currentLine) lines.push(currentLine);
-                    lines.push(""); // Blank line for paragraph
+    function wrapTextToWidth(words, maxChars) {
+        let lines = [];
+        let currentLine = "";
+        words.forEach(word => {
+            if (word === "") {
+                if (currentLine.length > 0) {
+                    lines.push(currentLine);
                     currentLine = "";
-                } else if (word.length > maxChars) {
-                    if (currentLine) {
-                        lines.push(currentLine);
-                        currentLine = "";
-                    }
-                    for (let i = 0; i < word.length; i += maxChars) {
-                        lines.push(word.substring(i, i + maxChars));
-                    }
-                } else if (currentLine.length + word.length + (currentLine.length > 0 ? 1 : 0) > maxChars) {
+                }
+                lines.push(""); // Blank line for paragraph
+            } else {
+                if ((currentLine + " " + word).trim().length > maxChars) {
                     lines.push(currentLine);
                     currentLine = word;
                 } else {
-                    currentLine += (currentLine.length === 0 ? "" : " ") + word;
+                    currentLine = currentLine ? currentLine + " " + word : word;
                 }
-            });
-            if (currentLine) lines.push(currentLine);
-            return lines;
-        }
-
-        let formattedLines = [];
-        let lineHeight = 18;
-        let visibleLines = 0;
-        let index = 0;
-
-        function updateFormattedLines() {
-            const maxChars = getMaxChars();
-            formattedLines = wrapTextToWidth(textArray, maxChars);
-            // Update lineHeight for responsive font size
-            const style = window.getComputedStyle(terminal);
-            lineHeight = parseFloat(style.lineHeight) || 18;
-            visibleLines = Math.floor(terminal.clientHeight / lineHeight);
-            if (formattedLines.length <= visibleLines) {
-                index = 0;
-            } else if (index > formattedLines.length - visibleLines) {
-                index = formattedLines.length - visibleLines;
             }
-        }
-
-        function renderText() {
-            if (formattedLines.length <= visibleLines) {
-                index = 0;
-            } else if (index > formattedLines.length - visibleLines) {
-                index = formattedLines.length - visibleLines;
-            }
-            let lines = formattedLines.slice(index, index + visibleLines);
-            while (lines.length < visibleLines) {
-                lines.push("");
-            }
-            terminal.textContent = lines.join("\n");
-        }
-
-        document.addEventListener('keydown', (event) => {
-            if (event.key === 'ArrowUp' && index > 0) {
-                index--;
-            } else if (event.key === 'ArrowDown' && index < formattedLines.length - visibleLines) {
-                index++;
-            }
-            renderText();
         });
+        if (currentLine.length > 0) lines.push(currentLine);
+        return lines;
+    }
 
-        document.addEventListener('wheel', (event) => {
-            index += event.deltaY > 0 ? 1 : -1;
-            if (formattedLines.length <= visibleLines) {
-                index = 0;
-            } else {
-                index = Math.max(0, Math.min(index, formattedLines.length - visibleLines));
-            }
-            renderText();
-        });
-
-        window.addEventListener('resize', () => {
-            updateFormattedLines();
-            renderText();
-        });
-
-        // Initial setup
-        updateFormattedLines();
-        renderText();
-    </script>
-</body>
+    // Enable keyboard scrolling for the CRT terminal
+    terminal.tabIndex = 0; // Make it focusable
+    terminal.addEventListener('keydown', function(e) {
+        if (e.key === "ArrowDown") {
+            terminal.scrollTop += 40; // Adjust scroll step as needed
+            e.preventDefault();
+        } else if (e.key === "ArrowUp") {
+            terminal.scrollTop -= 40;
+            e.preventDefault();
+        }
+    });
+});
+</script>
 </html>
