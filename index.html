@@ -44,8 +44,9 @@
                 max-width: 100vw;
                 font-size: 4vw;
                 line-height: 1.2em;
-                height: 90vh;         /* Changed from auto/min-height to 90% of viewport height */
-                min-height: 0;        /* Remove min-height to allow full responsiveness */
+                height: 100dvh;      /* Use dynamic viewport height for mobile */
+                min-height: 0;
+                box-sizing: border-box;
             }
         }
         .crt-text {
